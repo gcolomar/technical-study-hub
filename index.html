@@ -143,6 +143,17 @@
   .print-btn{background:transparent;border:1px solid var(--line);border-radius:6px;color:var(--dim);
     font-size:10px;letter-spacing:.8px;text-transform:uppercase;padding:5px 12px;cursor:pointer;transition:.15s;white-space:nowrap}
   .print-btn:hover{border-color:#555;color:var(--ink)}
+  /* search */
+  .sbar{padding:10px 16px 2px;max-width:880px;margin:0 auto}
+  .sbar-wrap{position:relative}
+  .sbar-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--dimmer);font-size:15px;pointer-events:none;line-height:1}
+  .search-input{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    padding:10px 14px 10px 36px;color:var(--ink);font-size:13px;outline:none;box-sizing:border-box;
+    font-family:var(--mono);transition:.15s}
+  .search-input:focus{border-color:#444}
+  .search-input::-webkit-search-cancel-button{cursor:pointer}
+  .srch-crumb{font-size:10px;color:var(--dimmer);letter-spacing:.5px;margin-bottom:6px;text-transform:uppercase}
+  .srch-section-label{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);margin:20px 0 10px;padding-bottom:4px;border-bottom:1px solid var(--line)}
   /* ---- PRINT STYLES ---- */
   @media print {
     @page { margin: 18mm 14mm; }
@@ -186,6 +197,7 @@
     <button class="print-btn" onclick="window.print()">⎙ Print</button>
   </div>
   <div class="tabs" id="tabs"></div>
+  <div class="sbar"><div class="sbar-wrap"><span class="sbar-icon">⌕</span><input id="search-input" class="search-input" type="search" placeholder="Search concepts…" autocomplete="off" spellcheck="false"></div></div>
   <div class="wrap" id="view"></div>
 
 <script>
@@ -1280,7 +1292,7 @@ const state = {
   pillar:null,
   mode:'full',
   iFilter:'all',
-  dFilter:'all',
+  dFilter:'all', search:'',
   // flashcards
   fcFilter:'all', fcLikelihood:'all',
   deck:[], idx:0, flipped:false, wrong:[], done:false,
@@ -1638,10 +1650,44 @@ function renderGlossary(v){
 }
 
 // ---------- ROUTER ----------
+function renderSearchResults(v){
+  const q=state.search.toLowerCase();
+  const titleHits=[], descHits=[];
+  PILLARS.forEach(p=>{
+    p.sections.forEach(sec=>{
+      sec.concepts.forEach(c=>{
+        if(c.term.toLowerCase().includes(q)) titleHits.push({p,sec,c});
+        else if((c.full+' '+(c.simple||'')+' '+(c.tip||'')).toLowerCase().includes(q)) descHits.push({p,sec,c});
+      });
+    });
+  });
+  if(!titleHits.length && !descHits.length){
+    v.appendChild($(`<div class="hint" style="margin-top:32px;text-align:center">No results for "<b>${esc(state.search)}</b>"</div>`));
+    return;
+  }
+  const renderHit=({p,sec,c})=>{
+    const meta=`<div class="card-meta"><span class="dbadge ${DCLASS[c.d]}">${DLABEL[c.d]}</span><span class="pbadge p${c.p}">${PLABEL[c.p]}</span></div>`;
+    const crumb=`<div class="srch-crumb">P${p.n} · ${esc(p.name)} › ${esc(sec.title)}</div>`;
+    const body=state.mode==='full'
+      ?`<div class="body">${esc(c.full)}</div><div class="tip">${esc(c.tip)}</div>`
+      :`<div class="body">${esc(c.simple)}</div>`;
+    v.appendChild($(`<div class="card">${crumb}${meta}<div class="term">${esc(c.term)}</div>${body}</div>`));
+  };
+  if(titleHits.length){
+    if(descHits.length) v.appendChild($(`<div class="srch-section-label">${titleHits.length} title match${titleHits.length!==1?'es':''}</div>`));
+    titleHits.forEach(renderHit);
+  }
+  if(descHits.length){
+    v.appendChild($(`<div class="srch-section-label">${descHits.length} description match${descHits.length!==1?'es':''}</div>`));
+    descHits.forEach(renderHit);
+  }
+}
+
 function render(resetScroll){
   renderTabs();
   const v=document.getElementById('view'); v.innerHTML='';
-  if(state.tab==='pillars') renderPillars(v);
+  if(state.search) renderSearchResults(v);
+  else if(state.tab==='pillars') renderPillars(v);
   else if(state.tab==='flashcards') renderFlashcards(v);
   else if(state.tab==='interview') renderInterview(v);
   else if(state.tab==='practice') renderPractice(v);
@@ -1650,6 +1696,10 @@ function render(resetScroll){
 }
 startSession('all','all');
 render(true);
+document.getElementById('search-input').addEventListener('input',function(){
+  state.search=this.value.trim();
+  render();
+});
 </script>
 </body>
 </html>
