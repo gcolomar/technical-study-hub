@@ -1651,13 +1651,14 @@ function renderGlossary(v){
 
 // ---------- ROUTER ----------
 function renderSearchResults(v){
-  const q=state.search.toLowerCase();
+  const words=state.search.toLowerCase().split(/\s+/).filter(Boolean);
+  const matchAll=(text)=>words.every(w=>text.toLowerCase().includes(w));
   const titleHits=[], descHits=[];
   PILLARS.forEach(p=>{
     p.sections.forEach(sec=>{
       sec.concepts.forEach(c=>{
-        if(c.term.toLowerCase().includes(q)) titleHits.push({p,sec,c});
-        else if((c.full+' '+(c.simple||'')+' '+(c.tip||'')).toLowerCase().includes(q)) descHits.push({p,sec,c});
+        if(matchAll(c.term)) titleHits.push({p,sec,c});
+        else if(matchAll(c.full+' '+(c.simple||'')+' '+(c.tip||''))) descHits.push({p,sec,c});
       });
     });
   });
